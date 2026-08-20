@@ -45,4 +45,29 @@ describe('Rate Limiter', () => {
     const rejected = await checkAndIncrementRateLimit(senderId, maxPerHour);
     expect(rejected.currentCount).toBe(maxPerHour); // Count didn't increment
   });
+
+  test('handles 10 simultaneous concurrent requests with limit 2 atomically', async () => {
+    const concurrentSender = `concurrent-${Date.now()}`;
+    const limit = 2;
+
+    // 10 concurrent requests executed in parallel via Promise.all
+    const promises = Array.from({ length: 10 }, () =>
+      checkAndIncrementRateLimit(concurrentSender, limit),
+    );
+
+    const outcomes = await Promise.all(promises);
+    const allowed = outcomes.filter((o) => o.allowed);
+    const rejected = outcomes.filter((o) => !o.allowed);
+
+    expect(allowed).toHaveLength(2);
+    expect(rejected).toHaveLength(8);
+
+    // All rejected requests must receive accurate positive nextWindowMs
+    for (const r of rejected) {
+      expect(r.nextWindowMs).toBeGreaterThan(0);
+    }
+
+    await resetRateLimit(concurrentSender);
+  });
 });
+
