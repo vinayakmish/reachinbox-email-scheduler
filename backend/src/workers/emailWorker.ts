@@ -1,0 +1,167 @@
+import { Worker, Job } from 'bullmq';
+import { JobStatus } from '@prisma/client';
+import { prisma } from '../config/prisma';
+import { getRedisClient } from '../config/redis';
+import { config } from '../config';
+import { EMAIL_QUEUE_NAME, addEmailJob } from '../queues/emailQueue';
+import { sendEmail } from '../services/emailService';
+import { checkAndIncrementRateLimit } from '../services/rateLimiter';
+import { EmailJobPayload } from '../types';
+import { logger } from '../utils/logger';
+
+export function createEmailWorker(): Worker<EmailJobPayload> {
+  const connection = getRedisClient();
+
+  const worker = new Worker<EmailJobPayload>(
+    EMAIL_QUEUE_NAME,
+    async (job: Job<EmailJobPayload>) => {
+      const { emailJobId } = job.data;
+      logger.info({ bullJobId: job.id, emailJobId }, 'Worker: job started');
+
+      // ── Step 1: Claim the job atomically (idempotency + concurrency safety) ──
+      // Only transition from PENDING or RESCHEDULED → PROCESSING.
+      // If 0 rows updated, another worker already claimed it — skip.
+      const updated = await prisma.emailJob.updateMany({
+        where: {
+          id: emailJobId,
+          status: { in: [JobStatus.PENDING, JobStatus.RESCHEDULED] },
+        },
+        data: { status: JobStatus.PROCESSING, attempts: { increment: 1 } },
+      });
+
+      if (updated.count === 0) {
+        // Fetch to check why
+        const emailJob = await prisma.emailJob.findUnique({
+          where: { id: emailJobId },
+        });
+        if (!emailJob) {
+          logger.warn({ emailJobId }, 'Worker: email job not found — skipping');
+          return;
+        }
+        if (emailJob.status === JobStatus.SENT) {
+          logger.info({ emailJobId }, 'Worker: email already SENT — idempotency skip');
+          return;
+        }
+        logger.warn({ emailJobId, status: emailJob.status }, 'Worker: job already claimed — skipping');
+        return;
+      }
+
+      // ── Step 2: Fetch full job details ──
+      const emailJob = await prisma.emailJob.findUnique({
+        where: { id: emailJobId },
+        include: { sender: true },
+      });
+
+      if (!emailJob) {
+        logger.error({ emailJobId }, 'Worker: email job disappeared after claim');
+        return;
+      }
+
+      // ── Step 3: Rate limit check ──
+      const { allowed, nextWindowMs } = await checkAndIncrementRateLimit(
+        emailJob.senderId,
+        config.worker.maxEmailsPerHourPerSender,
+      );
+
+      if (!allowed) {
+        // Reschedule the job to next hour window
+        const rescheduleDelay = nextWindowMs + Math.random() * 5000; // jitter
+        const rescheduleAt = new Date(Date.now() + rescheduleDelay);
+
+        await prisma.emailJob.update({
+          where: { id: emailJobId },
+          data: {
+            status: JobStatus.RESCHEDULED,
+            scheduledAt: rescheduleAt,
+            errorMessage: `Rate limit reached. Rescheduled to ${rescheduleAt.toISOString()}`,
+          },
+        });
+
+        // Enqueue a new delayed BullMQ job for the rescheduled time
+        const newBullJobId = await addEmailJob(emailJobId, rescheduleAt);
+        await prisma.emailJob.update({
+          where: { id: emailJobId },
+          data: { bullJobId: newBullJobId },
+        });
+
+        logger.info(
+          { emailJobId, rescheduleAt, rescheduleDelay },
+          'Worker: job rescheduled due to rate limit',
+        );
+        return;
+      }
+
+      // ── Step 4: Send the email ──
+      try {
+        await sendEmail({
+          from: `${emailJob.sender.displayName} <${emailJob.sender.email}>`,
+          to: emailJob.recipientEmail,
+          subject: emailJob.subject,
+          html: emailJob.body,
+          credentials: {
+            host: emailJob.sender.smtpHost,
+            port: emailJob.sender.smtpPort,
+            user: emailJob.sender.smtpUser,
+            pass: emailJob.sender.smtpPass,
+          },
+        });
+
+        // ── Step 5: Mark as SENT ──
+        await prisma.$transaction(async (tx) => {
+          await tx.emailJob.update({
+            where: { id: emailJobId },
+            data: { status: JobStatus.SENT, sentAt: new Date(), errorMessage: null },
+          });
+
+          await tx.emailCampaign.update({
+            where: { id: emailJob.campaignId },
+            data: { sentCount: { increment: 1 } },
+          });
+        });
+
+        logger.info({ emailJobId, to: emailJob.recipientEmail }, 'Worker: email sent successfully');
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error({ emailJobId, err }, 'Worker: email send failed');
+
+        await prisma.$transaction(async (tx) => {
+          await tx.emailJob.update({
+            where: { id: emailJobId },
+            data: { status: JobStatus.FAILED, errorMessage },
+          });
+
+          await tx.emailCampaign.update({
+            where: { id: emailJob.campaignId },
+            data: { failedCount: { increment: 1 } },
+          });
+        });
+
+        // Re-throw so BullMQ marks job as failed and applies retry backoff
+        throw err;
+      }
+    },
+    {
+      connection,
+      concurrency: config.worker.concurrency,
+      limiter: {
+        max: config.worker.concurrency,
+        duration: config.worker.minEmailDelayMs,
+      },
+    },
+  );
+
+  worker.on('completed', (job) => {
+    logger.info({ bullJobId: job.id }, 'Worker: BullMQ job completed');
+  });
+
+  worker.on('failed', (job, err) => {
+    logger.error({ bullJobId: job?.id, err }, 'Worker: BullMQ job failed');
+  });
+
+  worker.on('error', (err) => {
+    logger.error({ err }, 'Worker: uncaught error');
+  });
+
+  logger.info({ concurrency: config.worker.concurrency }, 'Email worker started');
+  return worker;
+}
