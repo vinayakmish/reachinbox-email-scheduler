@@ -69,27 +69,43 @@ export function DashboardPage() {
               value: scheduledEmails.data?.total ?? '—',
               color: 'text-amber-600',
               bg: 'bg-amber-50',
+              onClick: () => setActiveTab('scheduled'),
+              clickable: true,
             },
             {
               label: 'Sent',
               value: sentEmails.data?.emails.filter((e) => e.status === 'SENT').length ?? '—',
               color: 'text-green-600',
               bg: 'bg-green-50',
+              onClick: () => setActiveTab('sent'),
+              clickable: true,
             },
             {
               label: 'Failed',
               value: sentEmails.data?.emails.filter((e) => e.status === 'FAILED').length ?? '—',
               color: 'text-red-600',
               bg: 'bg-red-50',
+              onClick: () => setActiveTab('sent'),
+              clickable: true,
             },
             {
               label: 'Senders',
               value: senders.length,
               color: 'text-indigo-600',
               bg: 'bg-indigo-50',
+              onClick: undefined,
+              clickable: false,
             },
           ].map((stat) => (
-            <div key={stat.label} className="card p-4">
+            <div
+              key={stat.label}
+              onClick={stat.onClick}
+              className={`card p-4 transition-all duration-150 ${
+                stat.clickable
+                  ? 'cursor-pointer hover:shadow-md hover:border-gray-300 active:scale-[0.99]'
+                  : 'cursor-default'
+              }`}
+            >
               <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${stat.bg} mb-2`}>
                 <span className={`text-sm font-bold ${stat.color}`}>{stat.value}</span>
               </div>
