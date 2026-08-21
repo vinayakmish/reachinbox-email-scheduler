@@ -36,7 +36,7 @@ export async function getScheduledEmails(
 export async function getSentEmails(userId: string, page = 1, limit = 20) {
   const skip = (page - 1) * limit;
 
-  const [emails, total] = await Promise.all([
+  const [emails, total, sentCount, failedCount] = await Promise.all([
     prisma.emailJob.findMany({
       where: {
         campaign: { userId },
@@ -56,9 +56,21 @@ export async function getSentEmails(userId: string, page = 1, limit = 20) {
         status: { in: [JobStatus.SENT, JobStatus.FAILED] },
       },
     }),
+    prisma.emailJob.count({
+      where: {
+        campaign: { userId },
+        status: JobStatus.SENT,
+      },
+    }),
+    prisma.emailJob.count({
+      where: {
+        campaign: { userId },
+        status: JobStatus.FAILED,
+      },
+    }),
   ]);
 
-  return { emails, total, page, limit, totalPages: Math.ceil(total / limit) };
+  return { emails, total, sentCount, failedCount, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 export async function getEmailById(id: string, userId: string) {

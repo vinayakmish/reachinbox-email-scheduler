@@ -74,7 +74,7 @@ export function DashboardPage() {
             },
             {
               label: 'Sent',
-              value: sentEmails.data?.emails.filter((e) => e.status === 'SENT').length ?? '—',
+              value: sentEmails.data?.sentCount ?? sentEmails.data?.total ?? '—',
               color: 'text-green-600',
               bg: 'bg-green-50',
               onClick: () => setActiveTab('sent'),
@@ -82,7 +82,7 @@ export function DashboardPage() {
             },
             {
               label: 'Failed',
-              value: sentEmails.data?.emails.filter((e) => e.status === 'FAILED').length ?? '—',
+              value: sentEmails.data?.failedCount ?? 0,
               color: 'text-red-600',
               bg: 'bg-red-50',
               onClick: () => setActiveTab('sent'),

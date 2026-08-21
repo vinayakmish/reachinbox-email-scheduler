@@ -67,6 +67,18 @@ export interface EmailJob {
 export interface PaginatedResult<T> {
   emails: T[];
   total: number;
+  sentCount?: number;
+  failedCount?: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  emails: T[];
+  total: number;
+  sentCount?: number;
+  failedCount?: number;
   page: number;
   limit: number;
   totalPages: number;
