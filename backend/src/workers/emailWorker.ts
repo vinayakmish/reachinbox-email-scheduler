@@ -107,7 +107,7 @@ export function createEmailWorker(): Worker<EmailJobPayload> {
 
       // ── Step 4: Send the email ──
       try {
-        await sendEmail({
+        const emailResult = await sendEmail({
           from: `${emailJob.sender.displayName} <${emailJob.sender.email}>`,
           to: emailJob.recipientEmail,
           subject: emailJob.subject,
@@ -120,11 +120,18 @@ export function createEmailWorker(): Worker<EmailJobPayload> {
           },
         });
 
+        const previewUrl = emailResult.previewUrl ? emailResult.previewUrl : null;
+
         // ── Step 5: Mark as SENT ──
         await prisma.$transaction(async (tx) => {
           await tx.emailJob.update({
             where: { id: emailJobId },
-            data: { status: JobStatus.SENT, sentAt: new Date(), errorMessage: null },
+            data: {
+              status: JobStatus.SENT,
+              sentAt: new Date(),
+              previewUrl,
+              errorMessage: null,
+            },
           });
 
           await tx.emailCampaign.update({
@@ -133,7 +140,7 @@ export function createEmailWorker(): Worker<EmailJobPayload> {
           });
         });
 
-        logger.info({ emailJobId, to: emailJob.recipientEmail }, 'Worker: email sent successfully');
+        logger.info({ emailJobId, to: emailJob.recipientEmail, previewUrl }, 'Worker: email sent successfully');
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         logger.error({ emailJobId, err }, 'Worker: email send failed');

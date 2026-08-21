@@ -72,7 +72,7 @@ function createTransporter(credentials: SmtpCredentials): Transporter<SMTPTransp
   return nodemailer.createTransport(options);
 }
 
-export async function sendEmail(options: SendEmailOptions): Promise<SentMessageInfo> {
+export async function sendEmail(options: SendEmailOptions): Promise<{ info: SentMessageInfo; previewUrl: string | false }> {
   const transporter = createTransporter(options.credentials);
 
   const info = await transporter.sendMail({
@@ -88,5 +88,6 @@ export async function sendEmail(options: SendEmailOptions): Promise<SentMessageI
     logger.info({ to: options.to, messageId: info.messageId, previewUrl }, 'Email sent via Ethereal');
   }
 
-  return info;
+  return { info, previewUrl };
 }
+

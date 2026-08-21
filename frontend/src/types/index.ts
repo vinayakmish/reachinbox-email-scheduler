@@ -50,6 +50,7 @@ export interface EmailJob {
   attempts: number;
   bullJobId: string | null;
   errorMessage: string | null;
+  previewUrl?: string | null;
   idempotencyKey: string;
   createdAt: string;
   updatedAt: string;

@@ -83,6 +83,7 @@ model EmailJob {
   attempts        Int        @default(0)
   bullJobId       String?
   errorMessage    String?
+  previewUrl      String?
   idempotencyKey  String     @unique
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
