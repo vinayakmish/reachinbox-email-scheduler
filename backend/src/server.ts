@@ -4,9 +4,13 @@ import { prisma } from './config/prisma';
 import { getRedisClient, closeRedis } from './config/redis';
 import { createEmailWorker } from './workers/emailWorker';
 import { closeEmailQueue } from './queues/emailQueue';
+import { ensureLocalServices } from './utils/ensureServices';
 import { logger } from './utils/logger';
 
 async function main() {
+  // Automatically ensure PostgreSQL & Redis are running on Windows
+  await ensureLocalServices();
+
   // Initialize Redis connection
   getRedisClient();
 
