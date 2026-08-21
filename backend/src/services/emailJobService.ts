@@ -16,7 +16,7 @@ export async function getScheduledEmails(
       },
       include: {
         campaign: { select: { id: true, subject: true } },
-        sender: { select: { email: true, displayName: true } },
+        sender: { select: { email: true, displayName: true, smtpHost: true, smtpPort: true, smtpUser: true } },
       },
       orderBy: { scheduledAt: 'asc' },
       skip,
@@ -44,7 +44,7 @@ export async function getSentEmails(userId: string, page = 1, limit = 20) {
       },
       include: {
         campaign: { select: { id: true, subject: true } },
-        sender: { select: { email: true, displayName: true } },
+        sender: { select: { email: true, displayName: true, smtpHost: true, smtpPort: true, smtpUser: true } },
       },
       orderBy: { sentAt: 'desc' },
       skip,
@@ -66,7 +66,7 @@ export async function getEmailById(id: string, userId: string) {
     where: { id, campaign: { userId } },
     include: {
       campaign: { select: { id: true, subject: true } },
-      sender: { select: { email: true, displayName: true } },
+      sender: { select: { email: true, displayName: true, smtpHost: true, smtpPort: true, smtpUser: true } },
     },
   });
 }

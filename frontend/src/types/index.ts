@@ -54,7 +54,13 @@ export interface EmailJob {
   createdAt: string;
   updatedAt: string;
   campaign?: { id: string; subject: string };
-  sender?: { email: string; displayName: string };
+  sender?: {
+    email: string;
+    displayName: string;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string;
+  };
 }
 
 export interface PaginatedResult<T> {
