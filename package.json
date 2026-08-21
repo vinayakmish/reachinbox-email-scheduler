@@ -1,0 +1,9 @@
+{
+  "name": "reachinbox-email-scheduler",
+  "version": "1.0.0",
+  "description": "ReachInbox Email Scheduler - Full Stack Service",
+  "scripts": {
+    "start:all": "start.bat",
+    "stop:all": "stop.bat"
+  }
+}
