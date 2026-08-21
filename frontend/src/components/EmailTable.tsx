@@ -137,20 +137,18 @@ export function EmailTable({
                 {type === 'sent' && (
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {email.previewUrl ? (
-                        <a
-                          href={email.previewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-sm"
-                          title="Open instant rendered email preview (no login required)"
-                        >
-                          <span>View Email</span>
-                          <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                      ) : null}
+                      <a
+                        href={email.previewUrl || 'https://ethereal.email/messages'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-sm"
+                        title={email.previewUrl ? 'Open instant rendered email preview' : 'Open Ethereal Mailbox'}
+                      >
+                        <span>View Email</span>
+                        <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
                       <button
                         onClick={() => setSelectedSmtpEmail(email)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
@@ -253,20 +251,18 @@ export function EmailTable({
                 </div>
 
                 <div className="pt-3 flex flex-col sm:flex-row gap-2.5">
-                  {selectedSmtpEmail.previewUrl ? (
-                    <a
-                      href={selectedSmtpEmail.previewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 btn-primary text-xs flex items-center justify-center gap-1.5 text-center bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <span>View Rendered Email (No Login)</span>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  ) : null}
+                  <a
+                    href={selectedSmtpEmail.previewUrl || 'https://ethereal.email/messages'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 btn-primary text-xs flex items-center justify-center gap-1.5 text-center bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <span>{selectedSmtpEmail.previewUrl ? 'View Rendered Email (No Login)' : 'Open Ethereal Mailbox'}</span>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
                   <button
                     onClick={() => setSelectedSmtpEmail(null)}
                     className="btn-secondary text-xs px-4"
