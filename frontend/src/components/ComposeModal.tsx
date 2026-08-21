@@ -11,13 +11,23 @@ interface ComposeModalProps {
   onSuccess: () => void;
 }
 
+function getLocalDateTimeString(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function ComposeModal({ isOpen, onClose, senders, onSuccess }: ComposeModalProps) {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [startTime, setStartTime] = useState(() => {
     const d = new Date();
-    d.setMinutes(d.getMinutes() + 5);
-    return d.toISOString().slice(0, 16);
+    d.setMinutes(d.getMinutes() + 3);
+    return getLocalDateTimeString(d);
   });
   const [delayBetweenEmails, setDelayBetweenEmails] = useState(2000);
   const [hourlyLimit, setHourlyLimit] = useState(200);
@@ -240,6 +250,9 @@ export function ComposeModal({ isOpen, onClose, senders, onSuccess }: ComposeMod
                   className="input"
                   required
                 />
+                <p className="text-xs text-indigo-600 mt-1 font-medium">
+                  Matches your laptop clock ({new Intl.DateTimeFormat().resolvedOptions().timeZone})
+                </p>
               </div>
 
               <div>
