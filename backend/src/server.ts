@@ -5,6 +5,7 @@ import { getRedisClient, closeRedis } from './config/redis';
 import { createEmailWorker } from './workers/emailWorker';
 import { closeEmailQueue } from './queues/emailQueue';
 import { ensureLocalServices } from './utils/ensureServices';
+import { reconcilePendingJobs } from './services/reconciler';
 import { logger } from './utils/logger';
 
 async function main() {
@@ -16,6 +17,9 @@ async function main() {
 
   // Start the email worker
   const worker = createEmailWorker();
+
+  // Reconcile and promote any pending/elapsed email jobs
+  await reconcilePendingJobs();
 
   const app = createApp();
 

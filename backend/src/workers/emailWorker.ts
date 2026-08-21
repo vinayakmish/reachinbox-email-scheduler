@@ -19,44 +19,27 @@ export function createEmailWorker(): Worker<EmailJobPayload> {
       logger.info({ bullJobId: job.id, emailJobId }, 'Worker: job started');
 
       // ── Step 1: Claim the job atomically (idempotency + concurrency safety) ──
-      // Transition from PENDING or RESCHEDULED → PROCESSING.
-      //
-      // [Distributed Systems Note - Idempotency & SMTP Failure Window]:
-      // SMTP is an external side-effect without Two-Phase Commit (2PC) with PostgreSQL.
-      // 1. Atomic updateMany guarantees only ONE worker claims the job across multiple instances.
-      // 2. If a job is already SENT, it is skipped idempotently.
-      // 3. If a previous worker crashed after SMTP dispatch but before the DB could record SENT,
-      //    we safely prevent concurrent duplication. We log the state transition honestly rather
-      //    than claiming impossible mathematical "exactly-once" delivery across distributed boundaries.
+      // Transition from PENDING, RESCHEDULED, or stranded PROCESSING → PROCESSING.
       const updated = await prisma.emailJob.updateMany({
         where: {
           id: emailJobId,
-          status: { in: [JobStatus.PENDING, JobStatus.RESCHEDULED] },
+          status: { in: [JobStatus.PENDING, JobStatus.RESCHEDULED, JobStatus.PROCESSING] },
         },
         data: { status: JobStatus.PROCESSING, attempts: { increment: 1 } },
       });
 
-      if (updated.count === 0) {
-        // Fetch to inspect current state
-        const emailJob = await prisma.emailJob.findUnique({
-          where: { id: emailJobId },
-        });
-        if (!emailJob) {
-          logger.warn({ emailJobId }, 'Worker: email job not found in DB — skipping');
-          return;
-        }
-        if (emailJob.status === JobStatus.SENT) {
-          logger.info({ emailJobId, sentAt: emailJob.sentAt }, 'Worker: email already SENT — idempotency skip');
-          return;
-        }
-        if (emailJob.status === JobStatus.PROCESSING) {
-          logger.warn(
-            { emailJobId, attempts: emailJob.attempts },
-            'Worker: job is currently in PROCESSING state by another worker or recovering from crash — skipping duplicate claim',
-          );
-          return;
-        }
-        logger.warn({ emailJobId, status: emailJob.status }, 'Worker: job in non-claimable state — skipping');
+      // If 0 rows updated, verify if it was already SENT
+      const emailJobCheck = await prisma.emailJob.findUnique({
+        where: { id: emailJobId },
+      });
+
+      if (!emailJobCheck) {
+        logger.warn({ emailJobId }, 'Worker: email job not found in DB — skipping');
+        return;
+      }
+
+      if (emailJobCheck.status === JobStatus.SENT) {
+        logger.info({ emailJobId, sentAt: emailJobCheck.sentAt }, 'Worker: email already SENT — idempotency skip');
         return;
       }
 
